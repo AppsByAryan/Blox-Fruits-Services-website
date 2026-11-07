@@ -1,92 +1,185 @@
-# Blox Fruit Services — Vercel & Neon PostgreSQL Deployment Guide
+# Blox Fruit Services — Complete Vercel Deployment Guide
 
-This guide explains how to deploy the **Blox Fruit Services** website to **Vercel** with a free **Neon PostgreSQL** database, while preserving all in-game trade currency rules (M), non-custodial co-op carry safeguards, and the 50/50 payment escrow workflow.
-
----
-
-## 1. Architecture Summary
-
-- **Frontend**: React 19 + Vite 8 + Tailwind CSS v4 SPA built to static HTML/JS in `dist/`.
-- **Backend API**: Express serverless handler located at `/api/index.ts` and managed via `vercel.json` rewrites.
-- **Database**: Serverless Neon PostgreSQL queried through Drizzle ORM via `@neondatabase/serverless` (HTTP driver with zero connection pool limits).
-- **Security**: Staff session management enforced strictly through `HttpOnly; Secure; SameSite=Lax` cookies. Session tokens are never exposed to browser `localStorage` or frontend JavaScript.
+This guide provides end-to-end instructions for deploying the **Blox Fruit Services** full-stack application to **Vercel**.
 
 ---
 
-## 2. Free Tier Plans & Commercial Eligibility Analysis
+## 1. Architecture Overview
 
-> [!IMPORTANT]
-> ### Vercel Hobby vs. Commercial Use
-> - **Vercel Hobby Tier ($0/month)**: Strictly for **personal, non-commercial, or educational projects**.
-> - **In-Game Roblox Currency Context**: Blox Fruit Services deals strictly in **in-game virtual fruits and gamepasses** (0 real-world cash, 0 credit card checkouts).
-> - **Eligibility Rule**: If you operate this site as an unpaid personal community project or gaming guild service without charging real fiat money or running commercial advertising, **Vercel Hobby is permitted**. If you ever transition to charging real fiat currency (e.g. PayPal/Stripe donations, subscriptions, or registered commercial business operations), Vercel terms require upgrading to **Vercel Pro ($20/month per member)**.
-
-### Free Tier Limits
-
-1. **Neon PostgreSQL Free Tier**:
-   - 0.5 GB shared storage.
-   - Autosuspends compute after 5 minutes of idle time to conserve free hours.
-   - Resumes automatically in ~500ms when a new request arrives.
-   - Uses HTTPS single round-trip queries (`neon-http`), so cold starts do not exhaust connection limits.
-
-2. **Vercel Hobby Tier**:
-   - 100 GB monthly bandwidth.
-   - Max serverless function duration: 10-15 seconds.
-   - Automatic SSL certificates and global CDN edge caching.
+- **Frontend**: High-performance React 19 + Vite 8 SPA styled with Tailwind CSS v4, built to static HTML/JS/CSS in the `dist/` directory.
+- **Backend API**: Express serverless handler located at `api/index.ts` (proxied from `server.ts`) and routed through `vercel.json`.
+- **Database**:
+  - **Neon PostgreSQL**: Serverless database queried via `@neondatabase/serverless` (HTTP driver with zero connection pool limits).
+  - **Firebase Firestore**: Production persistence and Firebase Authentication (Google Sign-In with server-controlled Custom Claims).
+  - **Local In-Memory / File Fallback**: Automatic seamless fallback ensuring the application boots and serves orders even before databases are connected.
+- **Security**:
+  - Staff sessions use `HttpOnly; Secure; SameSite=Lax` cookies.
+  - Google Sign-In validates Firebase ID tokens server-side and checks for `{ admin: true }` Custom Claims.
+  - Automated research cron endpoints are secured with `CRON_SECRET`.
 
 ---
 
-## 3. Step 1: Create Your Neon PostgreSQL Database
+## 2. Vercel Free Tier & Commercial Eligibility
 
-1. Sign up for free at [neon.tech](https://neon.tech) (no credit card required).
-2. Click **Create Project**, name it (e.g., `blox-fruit-services`), and choose a region close to your primary audience (e.g., `US East` or `Frankfurt`).
-3. In the Neon Console Dashboard, find your **Connection String**.
-4. Select the **Pooled connection** or direct connection string. It will look like:
+> [!NOTE]
+> ### Roblox Virtual Currency & Vercel Hobby Tier
+> - **In-Game Roblox Currency Only**: Blox Fruit Services deals strictly with **in-game virtual fruits and gamepasses (M units)**. There is zero fiat processing, credit card checkout, or real-money payment processing.
+> - **Eligibility**: As an in-game gaming community co-op service, running this on the **Vercel Hobby Tier ($0/month)** is fully compliant. If you ever introduce real-world fiat monetization (e.g. Stripe, PayPal, paid subscriptions), Vercel's Terms of Service require upgrading to Vercel Pro.
+
+---
+
+## 3. Deployment Method A: Deploy via GitHub (Recommended)
+
+This is the easiest and most maintainable method. Every `git push` to your repository will automatically trigger an atomic preview or production build.
+
+### Step 1: Push Code to GitHub
+1. Initialize or push your project repository to GitHub:
+   ```bash
+   git add .
+   git commit -m "Configure app for Vercel deployment"
+   git push origin main
    ```
-   postgresql://user:password@ep-cool-fog-123456.us-east-2.aws.neon.tech/neondb?sslmode=require
-   ```
-5. Keep this connection string safe for Step 3.
+
+### Step 2: Import into Vercel
+1. Log in to [vercel.com](https://vercel.com) (sign up with GitHub if you haven't already).
+2. On your Vercel Dashboard, click **Add New…** → **Project**.
+3. Locate your repository from the list and click **Import**.
+
+### Step 3: Configure Build & Output Settings
+Vercel will detect Vite automatically. Verify the following project settings:
+- **Framework Preset**: `Vite`
+- **Root Directory**: `./` (leave default)
+- **Build Command**: `npm run build`
+- **Output Directory**: `dist`
+- **Install Command**: `npm install`
+
+### Step 4: Add Environment Variables
+Before clicking Deploy, expand the **Environment Variables** section in the Vercel setup screen and add the required variables (see [Environment Variables Reference](#5-environment-variables-reference) below):
+
+| Name | Recommended Value | Purpose |
+| :--- | :--- | :--- |
+| `NODE_ENV` | `production` | Enables production optimizations |
+| `ADMIN_PASSWORD` | *(Your secure password)* | Master password for fallback staff login |
+| `SESSION_SECRET` | *(64-character random string)* | Signs HMAC-SHA256 staff session cookies |
+| `VITE_DISCORD_INVITE_URL` | `https://discord.gg/JeZSJZb2aA` | Official Discord community & proof server |
+| `CRON_SECRET` | *(Strong random string)* | Protects automated research updates |
+| `DATABASE_URL` | *(Optional Neon connection string)* | Enables Neon PostgreSQL storage |
+| `GEMINI_API_KEY` | *(Optional Google AI API key)* | Enables live Google Search Grounding for fruit values |
+
+### Step 5: Click Deploy
+Click **Deploy**. Vercel will:
+1. Install dependencies.
+2. Build the Vite frontend into `dist/`.
+3. Package `api/index.ts` into a lightweight serverless function.
+4. Provide you with a production URL (e.g. `https://blox-fruit-services.vercel.app`).
 
 ---
 
-## 4. Step 2: Bootstrap Tables & Seed Services (Optional / First Run)
+## 4. Deployment Method B: Deploy via Vercel CLI
 
-The codebase includes an automatic fallback that seamlessly creates in-memory/local stores if no database is connected. When you connect Neon, you can run the bootstrap script or migration:
+If you prefer deploying directly from your terminal:
 
-```bash
-DATABASE_URL="your-neon-connection-string" npm run db:seed
+1. Install the Vercel CLI globally:
+   ```bash
+   npm install -g vercel
+   ```
+2. Log in to your Vercel account:
+   ```bash
+   vercel login
+   ```
+3. Deploy to production from the project root:
+   ```bash
+   vercel --prod
+   ```
+4. Follow the interactive prompts:
+   - *Set up and deploy?* **Y**
+   - *Which scope?* Select your account/team
+   - *Link to existing project?* **N**
+   - *Project name?* `blox-fruit-services`
+   - *Directory?* `./`
+   - *Want to modify settings?* **N** (Vercel reads `vercel.json` automatically)
+5. Add your environment variables either in the Vercel web dashboard under **Project Settings > Environment Variables**, or via CLI:
+   ```bash
+   vercel env add ADMIN_PASSWORD
+   vercel env add SESSION_SECRET
+   vercel env add VITE_DISCORD_INVITE_URL
+   ```
+
+---
+
+## 5. Environment Variables Reference
+
+| Variable | Required? | Description |
+| :--- | :---: | :--- |
+| `NODE_ENV` | Yes | Set to `production`. |
+| `ADMIN_PASSWORD` | Yes | Strong passphrase used to log in to `/admin` staff portal. Can also be a bcrypt hash (starting with `$2b$`). |
+| `SESSION_SECRET` | Yes | 64-character random string for signing staff cookies. |
+| `VITE_DISCORD_INVITE_URL` | Yes | Official Discord invite link: `https://discord.gg/JeZSJZb2aA`. |
+| `CRON_SECRET` | Recommended | Token required to call `POST /api/cron/research-update`. |
+| `DATABASE_URL` | Optional | Neon PostgreSQL connection URI (`postgresql://user:pass@ep-xyz.neon.tech/neondb?sslmode=require`). |
+| `GEMINI_API_KEY` | Optional | Used for live Google Search Grounding when researching Blox Fruits trade tier lists. |
+| `FIREBASE_PROJECT_ID` | Optional | Custom Firebase Project ID if overriding the built-in config. |
+| `FIREBASE_DATABASE_ID` | Optional | Custom Firestore Database ID if using a named database. |
+| `FIREBASE_SERVICE_ACCOUNT` | Optional | Single-line JSON string of your Firebase Service Account key for server-side Admin SDK operations. |
+
+---
+
+## 6. Configuring Firebase Authentication for Vercel
+
+If you use Google Sign-In for Admin Login on your deployed Vercel site:
+
+1. Open the [Firebase Console](https://console.firebase.google.com/).
+2. Select your project (`gen-lang-client-0400929459` or your linked project).
+3. In the left navigation, go to **Build** → **Authentication** → **Settings** tab.
+4. Scroll to **Authorized domains**.
+5. Click **Add domain** and enter your Vercel domain (e.g. `your-project-name.vercel.app` or your custom domain).
+6. Click **Save**.
+
+> This ensures Google Sign-In popup will not fail with `auth/unauthorized-domain` when accessed on your Vercel URL.
+
+---
+
+## 7. Automated Scheduling (Vercel Cron Jobs)
+
+To automate market research and catalogue value refreshes without manual intervention:
+
+You can configure Vercel Cron Jobs by adding a `crons` array to `vercel.json`:
+
+```json
+{
+  "version": 2,
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron/research-update",
+      "schedule": "0 4 * * *"
+    }
+  ]
+}
 ```
 
----
-
-## 5. Step 3: Deploy to Vercel
-
-1. Push your project to a **GitHub repository** (keep the main branch safe).
-2. Go to [vercel.com](https://vercel.com) and log in.
-3. Click **Add New...** → **Project** and select your GitHub repository.
-4. In the **Configure Project** screen:
-   - **Framework Preset**: Select `Vite` (Vercel will automatically detect `dist` output).
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
-5. Expand the **Environment Variables** section and add:
-
-| Variable Name | Description | Example / Placeholder Value |
-| :--- | :--- | :--- |
-| `DATABASE_URL` | Neon PostgreSQL connection string | `postgresql://user:pass@ep-xyz.aws.neon.tech/neondb?sslmode=require` |
-| `ADMIN_PASSWORD` | Master password for staff portal | `YourVerySecureStaffPassword2026!` |
-| `SESSION_SECRET` | Secret key for signing staff cookies | Any 64-character random string |
-| `NODE_ENV` | Environment mode | `production` |
-
-6. Click **Deploy**. Vercel will build the frontend assets and provision the `/api` serverless handler.
+*Note: Vercel Cron Jobs invoke the endpoint with header `x-vercel-cron: 1`. You can also trigger it from an external scheduler or GitHub Actions workflow by passing the `x-cron-secret: <YOUR_CRON_SECRET>` header.*
 
 ---
 
-## 6. Post-Deployment Verification Checklist
+## 8. Post-Deployment Verification Checklist
 
-- [ ] **Catalog (`/services`)**: All published carries display with in-game trade values (M).
-- [ ] **Order Booking (`/order`)**: Submit a test order with multiple fruits/gamepasses; confirm you receive an order code (`BFS-XXXX`) and tracking token.
-- [ ] **Order Tracking (`/track?token=...`)**: Confirm the 50/50 payment escrow breakdown displays correctly.
-- [ ] **Customer Support (`/support`)**: Verify the support form submits an inquiry and the Discord invite button works.
-- [ ] **Proofs Wall (`/proofs`)**: Verify that proofs with customer consent appear on the wall.
-- [ ] **Active Carries (`/ongoing`)**: Verify active carries display with privacy-masked client names.
-- [ ] **Staff Portal (`/admin`)**: Log in with your `ADMIN_PASSWORD`; verify that the session cookie is set (`HttpOnly; Secure; SameSite=Lax`) and test accepting an order and recording a 50% deposit.
+Once deployed, run through this quick checklist to ensure everything operates smoothly:
+
+- [ ] **Home & Catalog (`/services`)**: Carries load with their verified in-game trade values (M units).
+- [ ] **Booking Engine (`/order`)**: Submit a test booking; verify that an order code (`BFS-XXXX`) and private tracking token are generated.
+- [ ] **50/50 Escrow Calculator (`/track?token=...`)**: Verify the initial 50% deposit and remaining 50% on completion calculate accurately.
+- [ ] **Discord Community Links**: Verify clicking the Discord buttons in the Header, Footer, and Support page opens `https://discord.gg/JeZSJZb2aA` in a new tab.
+- [ ] **Staff Admin Portal (`/admin`)**:
+  - Test Admin Login with `ADMIN_PASSWORD` or Google Sign-In.
+  - Verify orders can be viewed, updated, or accepted.
+- [ ] **Proofs Wall (`/proofs`) & Ongoing Carries (`/ongoing`)**: Confirm anonymous public privacy masks work correctly.

@@ -1,8 +1,12 @@
-import { initializeApp, getApps, App } from 'firebase-admin/app';
+import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
 import { getFirestore, Firestore } from 'firebase-admin/firestore';
 import { getAuth, Auth } from 'firebase-admin/auth';
 import path from 'path';
 import fs from 'fs';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Initialize Firebase Admin SDK
 let firebaseAdminApp: App | null = null;
@@ -15,14 +19,43 @@ export function getFirebaseAdmin() {
   }
 
   try {
-    const configPath = path.resolve(process.cwd(), 'firebase-applet-config.json');
-    let projectId = 'gen-lang-client-0930171043';
-    let databaseId = 'ai-studio-bloxfruitsservic-556f2ca4-5b5d-4985-ac48-82fc2f53f72a';
+    let projectId = process.env.FIREBASE_PROJECT_ID || 'gen-lang-client-0400929459';
+    let databaseId = process.env.FIREBASE_DATABASE_ID || 'ai-studio-bloxfruitsservic-0b8414ac-1b89-445c-ba0b-47f4771a2aad';
 
-    if (fs.existsSync(configPath)) {
-      const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-      if (cfg.projectId) projectId = cfg.projectId;
-      if (cfg.firestoreDatabaseId) databaseId = cfg.firestoreDatabaseId;
+    const possiblePaths = [
+      path.resolve(process.cwd(), 'firebase-applet-config.json'),
+      path.resolve(__dirname, '../../firebase-applet-config.json'),
+      path.resolve(__dirname, '../firebase-applet-config.json'),
+    ];
+
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        try {
+          const cfg = JSON.parse(fs.readFileSync(p, 'utf8'));
+          if (cfg.projectId) projectId = cfg.projectId;
+          if (cfg.firestoreDatabaseId) databaseId = cfg.firestoreDatabaseId;
+          break;
+        } catch {}
+      }
+    }
+
+    if (process.env.FIREBASE_CONFIG) {
+      try {
+        const parsed = JSON.parse(process.env.FIREBASE_CONFIG);
+        if (parsed.projectId) projectId = parsed.projectId;
+        if (parsed.firestoreDatabaseId) databaseId = parsed.firestoreDatabaseId;
+      } catch {}
+    }
+
+    let credentialOption = undefined;
+    if (process.env.FIREBASE_SERVICE_ACCOUNT) {
+      try {
+        const sa = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+        credentialOption = cert(sa);
+        if (sa.project_id) projectId = sa.project_id;
+      } catch (saErr) {
+        console.warn('[FirebaseAdmin] Could not parse FIREBASE_SERVICE_ACCOUNT:', saErr);
+      }
     }
 
     const currentApps = getApps();
@@ -31,6 +64,7 @@ export function getFirebaseAdmin() {
     } else {
       firebaseAdminApp = initializeApp({
         projectId,
+        ...(credentialOption ? { credential: credentialOption } : {}),
       });
     }
 

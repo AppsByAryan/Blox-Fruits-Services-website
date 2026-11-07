@@ -50,6 +50,15 @@ const port = resolvePort();
 
 app.use(express.json());
 
+// Normalize incoming Vercel serverless request URLs:
+// If invoked in a serverless environment (e.g. Vercel rewrites) where the /api prefix may be stripped
+app.use((req, _res, next) => {
+  if (process.env.VERCEL && req.url && !req.url.startsWith('/api') && !req.url.startsWith('/assets') && !req.url.startsWith('/vite')) {
+    req.url = `/api${req.url.startsWith('/') ? '' : '/'}${req.url}`;
+  }
+  next();
+});
+
 // In-memory rate limiting for order submissions and admin login
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 function checkRateLimit(ip: string, maxRequests = 15, windowMs = 60000): boolean {
@@ -67,12 +76,15 @@ function checkRateLimit(ip: string, maxRequests = 15, windowMs = 60000): boolean
 }
 
 // Clean up stale rate limits periodically
-setInterval(() => {
+const rateLimitInterval = setInterval(() => {
   const now = Date.now();
   for (const [key, val] of rateLimitMap.entries()) {
     if (now > val.resetAt) rateLimitMap.delete(key);
   }
 }, 300000);
+if (typeof rateLimitInterval.unref === 'function') {
+  rateLimitInterval.unref();
+}
 
 // --- PUBLIC API ROUTES ---
 
@@ -1415,7 +1427,8 @@ async function startServer() {
   }
 
   if (!isProd) {
-    const { createServer: createViteServer } = await import('vite');
+    const viteModule = 'vite';
+    const { createServer: createViteServer } = await import(/* @vite-ignore */ viteModule);
     const vite = await createViteServer({
       server: { middlewareMode: true, hmr: false },
       appType: 'spa',
@@ -1436,7 +1449,7 @@ async function startServer() {
 
 // Only start the standalone listener if not invoked as a serverless function (e.g. Vercel) or during testing
 const isTestExecution = process.env.NODE_ENV === 'test' || process.argv.some(arg => arg.includes('test'));
-if (process.env.VERCEL !== '1' && !isTestExecution) {
+if (!process.env.VERCEL && !isTestExecution) {
   startServer().catch((err) => {
     console.error('Failed to start server:', err);
   });
