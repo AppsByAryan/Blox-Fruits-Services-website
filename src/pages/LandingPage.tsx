@@ -52,6 +52,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             Roblox In-Game Service · 50/50 Deposit Escrow
           </div>
 
+          {/* Official Brand Logo Showcase */}
+          <div className="flex justify-center pt-2">
+            <div className="relative inline-block max-w-md sm:max-w-lg md:max-w-xl rounded-2xl overflow-hidden border border-amber-400/25 shadow-2xl shadow-amber-500/15 bg-slate-900/80 p-2 sm:p-3 transition-transform duration-300 hover:scale-[1.01]">
+              <img
+                src="/assets/aistudio/Neon_Blox_Fruits_Services_Hub_b49f2330.png"
+                alt="Blox Fruits Services Official Hub Logo"
+                className="w-full h-auto max-h-[220px] sm:max-h-[280px] object-contain rounded-xl"
+                loading="eager"
+              />
+            </div>
+          </div>
+
           <h1 className="text-3xl sm:text-5xl md:text-6xl font-extrabold text-white tracking-tight max-w-4xl mx-auto leading-tight" style={{ textWrap: 'balance' }}>
             Blox Fruit Services Paid Exclusively With Fruit & Gamepass Trade Value
           </h1>

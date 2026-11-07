@@ -41,8 +41,27 @@ export const Footer: React.FC = () => {
           </div>
         </div>
 
+        {/* Brand Banner Strip */}
+        <div className="border-t border-slate-900 pt-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <img
+              src="/assets/aistudio/Neon_Blox_Fruits_Services_Hub_b49f2330.png"
+              alt="Blox Fruit Services Logo"
+              className="h-11 w-auto object-contain rounded-lg border border-amber-400/10 shadow-sm"
+              loading="lazy"
+            />
+            <div>
+              <div className="text-sm font-bold text-white tracking-tight">Blox Fruit Services</div>
+              <div className="text-[11px] text-amber-400/90 font-medium">Fast · Safe · Trusted Co-Op Carries</div>
+            </div>
+          </div>
+          <div className="text-xs text-slate-500 text-center sm:text-right">
+            Paid exclusively with in-game fruits &amp; gamepasses
+          </div>
+        </div>
+
         {/* Quick Links Strip */}
-        <div className="border-t border-slate-900 pt-6 flex flex-wrap items-center justify-between gap-4 text-xs">
+        <div className="border-t border-slate-900/60 pt-4 flex flex-wrap items-center justify-between gap-4 text-xs">
           <div className="flex items-center gap-6 text-slate-400">
             <a href="/services" className="hover:text-amber-400 transition-colors">Catalog</a>
             <a href="/ongoing" className="hover:text-amber-400 transition-colors">Active Queue</a>

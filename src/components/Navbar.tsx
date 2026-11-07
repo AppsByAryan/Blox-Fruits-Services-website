@@ -24,15 +24,19 @@ export const Navbar: React.FC<NavbarProps> = ({ currentPath, onNavigate, isAdmin
   return (
     <header className="sticky top-0 z-40 bg-slate-950/90 backdrop-blur-md border-b border-slate-800">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-6">
-        {/* Zone 1: Brand Wordmark */}
+        {/* Zone 1: Brand Logo & Wordmark */}
         <button
           onClick={() => handleNav('/')}
-          className="flex items-center gap-2.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded-md"
+          className="flex items-center gap-2.5 text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 rounded-md group"
+          aria-label="Blox Fruit Services Home"
         >
-          <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-slate-950 font-black text-base shadow-sm">
-            BF
-          </div>
-          <span className="text-base sm:text-lg font-bold tracking-tight text-white whitespace-nowrap shrink-0">
+          <img
+            src="/assets/aistudio/Neon_Blox_Fruits_Services_Hub_b49f2330.png"
+            alt="Blox Fruit Services Logo"
+            className="h-10 w-auto max-w-[130px] sm:max-w-[160px] object-contain rounded-md transition-transform duration-200 group-hover:scale-105"
+            loading="eager"
+          />
+          <span className="hidden sm:inline-block text-base sm:text-lg font-bold tracking-tight text-white whitespace-nowrap shrink-0">
             Blox Fruit Services
           </span>
         </button>

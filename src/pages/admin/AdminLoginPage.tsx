@@ -52,9 +52,13 @@ export const AdminLoginPage: React.FC<AdminLoginPageProps> = ({
   return (
     <div className="max-w-md mx-auto px-4 py-16 space-y-6">
       <div className="bg-slate-900 border border-slate-800 rounded-3xl p-6 sm:p-8 space-y-6 shadow-xl">
-        <div className="text-center space-y-2">
-          <div className="w-12 h-12 bg-amber-400/10 text-amber-400 rounded-2xl flex items-center justify-center mx-auto border border-amber-400/20">
-            <Lock className="w-6 h-6" />
+        <div className="text-center space-y-3">
+          <div className="flex justify-center">
+            <img
+              src="/assets/aistudio/Neon_Blox_Fruits_Services_Hub_b49f2330.png"
+              alt="Blox Fruit Services Logo"
+              className="h-14 sm:h-16 w-auto object-contain rounded-xl drop-shadow-md border border-amber-400/20"
+            />
           </div>
           <h1 className="text-xl font-bold text-white tracking-tight">
             Staff Portal Authentication
